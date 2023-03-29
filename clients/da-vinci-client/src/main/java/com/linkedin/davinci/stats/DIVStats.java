@@ -25,6 +25,8 @@ public class DIVStats {
   private final LongAdder duplicateMsg = new LongAdder();
   private final LongAdder successMsg = new LongAdder();
 
+  private final WritePathLatencySensor producerToReadyToServeLatencySensor;
+
   private long benignLeaderOffsetRewindCount = 0;
   private long potentiallyLossyLeaderOffsetRewindCount = 0;
   private long leaderProducerFailureCount = 0;
@@ -67,6 +69,8 @@ public class DIVStats {
         new WritePathLatencySensor(localRepository, metricConfig, "producer_to_follower_consumer_latency");
     leaderProducerCompletionLatencySensor =
         new WritePathLatencySensor(localRepository, metricConfig, "leader_producer_completion_latency");
+    producerToReadyToServeLatencySensor =
+        new WritePathLatencySensor(localRepository, metricConfig, "producer_to_ready_to_serve_latency");
   }
 
   public long getDuplicateMsg() {

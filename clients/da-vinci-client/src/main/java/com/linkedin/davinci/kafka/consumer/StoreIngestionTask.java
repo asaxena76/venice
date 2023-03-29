@@ -2382,6 +2382,24 @@ public abstract class StoreIngestionTask implements Runnable, Closeable {
       String kafkaUrl,
       long beforeProcessingRecordTimestampNs) {
     // De-serialize payload into Venice Message format
+    long producerMessageTimestamp = consumerRecord.getValue().producerMetadata.messageTimestamp;
+
+    //// Debug info - Remove from final PR
+    long debuglogTimeStamp = System.currentTimeMillis();
+    LOGGER.info(
+        "--> topicpartition: {}, offset: {}, key: {}, producermetadata: {}, leadermetadatafooter {} ,messagetimestamp: {}, currenttimestamp: {}, latency: {}, leaderfollowerstate: {}, kafkaurl: {}, leaderproducedrecordcontext: {}",
+        consumerRecord.getTopicPartition(),
+        consumerRecord.getOffset(),
+        consumerRecord.getKey(),
+        consumerRecord.getValue().getProducerMetadata(),
+        consumerRecord.getValue().getLeaderMetadataFooter(),
+        producerMessageTimestamp,
+        debuglogTimeStamp,
+        debuglogTimeStamp - producerMessageTimestamp,
+        partitionConsumptionState.getLeaderFollowerState(),
+        kafkaUrl,
+        leaderProducedRecordContext);
+    //// End of debug info
     KafkaKey kafkaKey = consumerRecord.getKey();
     KafkaMessageEnvelope kafkaValue = consumerRecord.getValue();
     int sizeOfPersistedData = 0;
@@ -2391,6 +2409,7 @@ public abstract class StoreIngestionTask implements Runnable, Closeable {
       long currentTimeMs = System.currentTimeMillis();
       long producerBrokerLatencyMs =
           Math.max(consumerRecord.getPubSubMessageTime() - kafkaValue.producerMetadata.messageTimestamp, 0);
+
       long brokerConsumerLatencyMs = Math.max(currentTimeMs - consumerRecord.getPubSubMessageTime(), 0);
       long producerConsumerLatencyMs = Math.max(currentTimeMs - kafkaValue.producerMetadata.messageTimestamp, 0);
       recordWriterStats(
@@ -2451,6 +2470,12 @@ public abstract class StoreIngestionTask implements Runnable, Closeable {
             partitionConsumptionState,
             leaderProducedRecordContext,
             currentTimeMs);
+      }
+      if (isHybridMode() && isCurrentVersion.getAsBoolean() && partitionConsumptionState.hasLagCaughtUp()) {
+        versionedIngestionStats.recordHybridProducerToReadyToServeLatency(
+            storeName,
+            versionNumber,
+            LatencyUtils.getLatencyInMS(producerMessageTimestamp));
       }
       versionedIngestionStats.recordConsumedRecordEndToEndProcessingLatency(
           storeName,
